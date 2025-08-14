@@ -8,21 +8,27 @@ export const APP_CONFIG = {
 } as const;
 
 // Color scheme - NMC-inspired professional colors
+// Azure Speech Service configuration
+export const AZURE = {
+  SPEECH_KEY: 'your-azure-speech-key', // Replace with actual key from Azure portal
+  SPEECH_REGION: 'uksouth', // Replace with your Azure region
+} as const;
+
 export const COLORS = {
-  // Primary colors - NMC blue scheme
-  PRIMARY: '#1E40AF', // Dark blue from NMC website
-  PRIMARY_DARK: '#1E3A8A', // Darker blue for hover states
-  PRIMARY_LIGHT: '#3B82F6', // Lighter blue for accents
+  // Primary colors - NMC teal/cyan scheme from website
+  PRIMARY: '#008B8B', // Dark cyan/teal from NMC branding
+  PRIMARY_DARK: '#006666', // Darker teal for hover states
+  PRIMARY_LIGHT: '#20B2AA', // Light sea green for accents
   
-  // Secondary colors
-  SECONDARY: '#059669', // Healthcare green
-  SECONDARY_DARK: '#047857',
-  SECONDARY_LIGHT: '#10b981',
+  // Secondary colors - NMC purple/magenta accents
+  SECONDARY: '#8B008B', // Dark magenta from NMC website
+  SECONDARY_DARK: '#660066', // Darker magenta
+  SECONDARY_LIGHT: '#DA70D6', // Orchid for lighter accents
   
   // Accent colors
-  ACCENT: '#dc2626', // Alert red
-  ACCENT_DARK: '#b91c1c',
-  ACCENT_LIGHT: '#ef4444',
+  ACCENT: '#E91E63', // Pink accent for calls-to-action
+  ACCENT_DARK: '#C2185B',
+  ACCENT_LIGHT: '#F48FB1',
   
   // Neutral colors
   WHITE: '#ffffff',
@@ -39,29 +45,31 @@ export const COLORS = {
   GRAY_900: '#111827',
   
   // Status colors
-  SUCCESS: '#059669', // Darker green for better contrast
+  SUCCESS: '#00A86B', // Medical green
   SUCCESS_LIGHT: '#D1FAE5', // Light green background
-  SUCCESS_DARK: '#047857', // Darker green
-  WARNING: '#D97706', // Darker orange
-  ERROR: '#DC2626', // Darker red
+  SUCCESS_DARK: '#008B56', // Darker green
+  WARNING: '#FF8C00', // Medical orange
+  ERROR: '#DC143C', // Crimson for errors
   ERROR_LIGHT: '#FEE2E2', // Light red background for error containers
-  INFO: '#2563EB',
+  INFO: '#008B8B', // Use primary teal for info
   
   // Background colors
-  BACKGROUND: '#F8FAFC', // Very light blue-gray
+  BACKGROUND: '#F0F8FF', // Alice blue - very light, professional
   SURFACE: '#ffffff',
   CARD: '#ffffff',
   
   // Text colors
-  TEXT_PRIMARY: '#1f2937',
+  TEXT_PRIMARY: '#2C3E50', // Dark blue-gray for primary text
   TEXT_SECONDARY: '#4B5563', // Darker gray for better readability
   TEXT_DISABLED: '#9ca3af',
   
-  // NMC specific colors
-  NMC_BLUE: '#1E40AF', // Main NMC blue
-  NMC_BLUE_LIGHT: '#3B82F6', // Lighter NMC blue
-  NMC_BLUE_DARK: '#1E3A8A', // Darker NMC blue
+  // NMC specific colors - updated to match website
+  NMC_BLUE: '#008B8B', // Main NMC teal
+  NMC_BLUE_LIGHT: '#20B2AA', // Lighter NMC teal
+  NMC_BLUE_DARK: '#006666', // Darker NMC teal
   NMC_GRAY: '#6B7280', // NMC gray for secondary text
+  NMC_PURPLE: '#8B008B', // NMC purple accent
+  NMC_PINK: '#E91E63', // NMC pink for highlights
 } as const;
 
 // Typography

@@ -28,8 +28,10 @@
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.READ_EXTERNAL_STORAGE"
-      ]
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "package": "com.nselenduna.nurserevalidator"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,6 +43,12 @@
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for voice transcription."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "073fcd0f-8ca5-4305-868b-c984199417ba"
+      }
+    },
+    "jsEngine": "hermes"
   }
 }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SafeAreaView, StyleSheet, ScrollView, View, Text, TouchableOpacity, Switch, Alert } from 'react-native';
+import { themeService } from '../services/ThemeService';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../constants';
@@ -16,7 +17,18 @@ const SettingsScreen: React.FC = () => {
   const [showSubscriptionManager, setShowSubscriptionManager] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
+  const [darkModeEnabled, setDarkModeEnabled] = useState(() => themeService.getCurrentTheme() === 'dark');
+
+  // Handle dark mode toggle
+  const handleDarkModeToggle = async (value: boolean) => {
+    try {
+      await themeService.setTheme(value ? 'dark' : 'light');
+      setDarkModeEnabled(value);
+    } catch (error) {
+      console.error('Failed to toggle dark mode:', error);
+      Alert.alert('Error', 'Failed to change theme. Please try again.');
+    }
+  };
   const [privacyModeEnabled, setPrivacyModeEnabled] = useState(false);
 
   const handleBackupRestore = () => {
@@ -75,7 +87,7 @@ const SettingsScreen: React.FC = () => {
 
   const handleAbout = () => {
     Alert.alert(
-      'About NMC Nurse Assistant',
+      'About Nurse Revalidator',
       'Version 1.0.0\n\nA comprehensive tool for nurses to manage their revalidation process, CPD logging, and professional development.\n\nBuilt with React Native and Expo.',
       [{ text: 'OK' }]
     );
@@ -140,8 +152,7 @@ const SettingsScreen: React.FC = () => {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Settings</Text>
-          <Text style={styles.subtitle}>Configure your app preferences</Text>
+          {/* Title removed as per request */}
         </View>
 
         {/* App Settings */}
@@ -177,11 +188,11 @@ const SettingsScreen: React.FC = () => {
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Dark Mode</Text>
-              <Text style={styles.settingDescription}>Use dark theme (coming soon)</Text>
+              <Text style={styles.settingDescription}>Use dark theme</Text>
             </View>
             <Switch
               value={darkModeEnabled}
-              onValueChange={setDarkModeEnabled}
+              onValueChange={handleDarkModeToggle}
               trackColor={{ false: COLORS.GRAY_300, true: COLORS.PRIMARY }}
               thumbColor={COLORS.WHITE}
             />
@@ -312,7 +323,7 @@ const SettingsScreen: React.FC = () => {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            NMC Nurse Assistant v1.0.0
+            Nurse Revalidator v1.0.0
           </Text>
           <Text style={styles.footerText}>
             Built for UK nurses

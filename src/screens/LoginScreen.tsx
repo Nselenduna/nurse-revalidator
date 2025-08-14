@@ -84,12 +84,12 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           <View style={styles.header}>
             <View style={styles.logoContainer}>
               <View style={styles.logoCircle}>
-                <Text style={styles.logoText}>NMC</Text>
+                <Text style={styles.logoText}>NR</Text>
               </View>
             </View>
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>
-              Sign in to your NMC Nurse Revalidator account
+              Sign in to your Nurse Revalidator account
             </Text>
           </View>
 
@@ -265,13 +265,17 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
+  textInputFocused: {
+    borderColor: COLORS.PRIMARY,
+    borderWidth: 2,
+  },
   showPasswordButton: {
     position: 'absolute',
     right: 16,
     top: 42,
   },
   showPasswordText: {
-    color: COLORS.PRIMARY,
+    color: COLORS.NMC_PURPLE,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -280,7 +284,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   forgotPasswordText: {
-    color: COLORS.PRIMARY,
+    color: COLORS.NMC_PURPLE,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -335,7 +339,7 @@ const styles = StyleSheet.create({
   },
   signUpLink: {
     ...TYPOGRAPHY.BODY,
-    color: COLORS.PRIMARY,
+    color: COLORS.NMC_PURPLE,
     fontWeight: '600',
   },
   footer: {

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../constants';
 import { useVoiceRecording } from '../hooks/useVoiceRecording';
+import { voiceService } from '../services/VoiceService';
 
 interface VoiceRecorderProps {
   onSave?: (transcript: { title: string; content: string; tags: string }) => void;
@@ -27,10 +28,13 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   
   const {
     isRecording,
+    isPaused,
     isTranscribing,
     transcription,
     suggestions,
     startRecording,
+    pauseRecording,
+    resumeRecording,
     stopRecording,
     transcribeRecording,
     enhanceTranscription,
@@ -44,25 +48,75 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
 
   console.log('VoiceRecorder state:', { isRecording, isTranscribing, transcription: transcription?.length, error });
 
-  const handleStartRecording = async () => {
-    console.log('handleStartRecording called');
+  const handleStartPauseRecording = async () => {
+    console.log('handleStartPauseRecording called');
     try {
-      await startRecording();
+      // Don't try to set error directly as it comes from the hook
+      
+      if (isRecording && !isPaused) {
+        await pauseRecording();
+      } else if (isPaused) {
+        await resumeRecording();
+      } else {
+        await startRecording();
+      }
     } catch (err) {
       console.error('Recording error:', err);
-      Alert.alert('Recording Error', 'Failed to start recording. Please check microphone permissions.');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown recording error';
+      
+      // Don't show "Already recording" error to user, just log it
+      if (errorMessage.includes('Already recording')) {
+        console.log('Recording already in progress, ignoring duplicate start request');
+        return;
+      }
+      
+      // Show user-friendly error message
+      const userFriendlyMessage = errorMessage.includes('permission') 
+        ? 'Microphone permission required. Please enable microphone access in your device settings.'
+        : 'Failed to start/pause/resume recording. Please try again.';
+      
+      Alert.alert('Recording Error', userFriendlyMessage);
     }
   };
 
   const handleStopRecording = async () => {
     console.log('handleStopRecording called');
     try {
-      await stopRecording();
-      // Automatically start transcription
-      await transcribeRecording();
+      // First try to stop recording
+      try {
+        await stopRecording();
+      } catch (stopError) {
+        console.warn('Error stopping recording:', stopError);
+        // Don't throw here, still try to transcribe if we have a recording
+      }
+
+      // Check if we have a recording state with URI before transcribing
+      const recordingState = voiceService.getRecordingState();
+      if (recordingState.uri) {
+        console.log('Recording stopped, proceeding with transcription');
+        try {
+          await transcribeRecording();
+        } catch (transcribeError) {
+          console.error('Transcription error:', transcribeError);
+          Alert.alert(
+            'Transcription Error',
+            'Failed to transcribe recording. Please try again or save the audio for later.'
+          );
+        }
+      } else {
+        console.log('No recording URI available');
+        Alert.alert('Note', 'No recording was captured. Please try recording again.');
+      }
     } catch (err) {
       console.error('Stop recording error:', err);
-      Alert.alert('Recording Error', 'Failed to stop recording.');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      
+      // Show user-friendly error message
+      const userFriendlyMessage = errorMessage.includes('No active recording')
+        ? 'No recording to stop. Please start recording first.'
+        : 'Failed to stop recording. Please try again.';
+      
+      Alert.alert('Recording Error', userFriendlyMessage);
     }
   };
 
@@ -72,34 +126,69 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       await enhanceTranscription();
     } catch (err) {
       console.error('Enhancement error:', err);
-      Alert.alert('Enhancement Error', 'Failed to enhance transcription.');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      
+      // Show user-friendly error message
+      const userFriendlyMessage = errorMessage.includes('No transcription')
+        ? 'No transcription to enhance. Please record and transcribe first.'
+        : 'Failed to enhance transcription. Please try again.';
+      
+      Alert.alert('Enhancement Error', userFriendlyMessage);
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     console.log('handleSave called');
     if (!title.trim()) {
       Alert.alert('Missing Title', 'Please enter a title for your transcript.');
       return;
     }
 
-    if (!transcription.trim()) {
-      Alert.alert('Missing Content', 'Please record and transcribe some content before saving.');
-      return;
+    try {
+      // If currently recording, stop the recording first
+      if (isRecording) {
+        const result = await stopRecording();
+        if (result !== undefined) {
+          await transcribeRecording();
+        }
+      }
+
+      // Now check if we have content
+      if (!transcription.trim()) {
+        Alert.alert('Missing Content', 'Please ensure the recording is transcribed before saving.');
+        return;
+      }
+
+      const transcriptData = {
+        title: title.trim(),
+        content: transcription.trim(),
+        tags: tags.trim(),
+      };
+
+      console.log('Saving transcript data:', transcriptData);
+      onSave?.(transcriptData);
+    } catch (err) {
+      console.error('Save error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      
+      // Show user-friendly error message
+      const userFriendlyMessage = errorMessage.includes('transcription')
+        ? 'Failed to transcribe recording. Please try again.'
+        : 'Failed to save transcript. Please try again.';
+      
+      Alert.alert('Error', userFriendlyMessage);
     }
-
-    const transcriptData = {
-      title: title.trim(),
-      content: transcription.trim(),
-      tags: tags.trim(),
-    };
-
-    console.log('Saving transcript data:', transcriptData);
-    onSave?.(transcriptData);
   };
 
   const handleClear = () => {
     console.log('handleClear called');
+    
+    // Check if there's anything to clear
+    if (!transcription.trim() && !title.trim() && !tags.trim()) {
+      Alert.alert('Nothing to Clear', 'There is no content to clear.');
+      return;
+    }
+    
     Alert.alert(
       'Clear Transcript',
       'Are you sure you want to clear the current transcript?',
@@ -109,10 +198,16 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
           text: 'Clear',
           style: 'destructive',
           onPress: () => {
-            clearTranscription();
-            setTitle('');
-            setTags('');
-            setIsEditing(false);
+            try {
+              clearTranscription();
+              setTitle('');
+              setTags('');
+              setIsEditing(false);
+              console.log('Content cleared successfully');
+            } catch (err) {
+              console.error('Failed to clear content:', err);
+              Alert.alert('Error', 'Failed to clear content. Please try again.');
+            }
           },
         },
       ]
@@ -152,32 +247,55 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         <View style={styles.recordingStatus}>
           {isRecording ? (
             <View style={styles.recordingIndicator}>
-              <View style={styles.recordingDot} />
-              <Text style={styles.recordingText}>Recording...</Text>
+              <View style={[styles.recordingDot, isPaused && styles.pausedDot]} />
+              <Text style={styles.recordingText}>
+                {isPaused ? 'Paused...' : 'Recording...'}
+              </Text>
             </View>
           ) : (
             <Text style={styles.readyText}>Ready to record</Text>
           )}
         </View>
 
-        <View style={styles.recordingButtons}>
-          {!isRecording ? (
-            <TouchableOpacity
-              style={[styles.button, styles.recordButton]}
-              onPress={handleStartRecording}
-              disabled={isTranscribing}
-            >
-              <Text style={styles.buttonText}>Start Recording</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[styles.button, styles.stopButton]}
-              onPress={handleStopRecording}
-            >
-              <Text style={styles.buttonText}>Stop Recording</Text>
-            </TouchableOpacity>
-          )}
+        <View style={styles.recordingButtonsRow}>
+          <TouchableOpacity
+            style={[
+              styles.button,
+              styles.controlButton,
+              isRecording && !isPaused ? styles.recordingButton : 
+              isPaused ? styles.pauseButton : styles.startButton
+            ]}
+            onPress={handleStartPauseRecording}
+            disabled={isTranscribing}
+          >
+            <Text style={styles.buttonText}>
+              {isRecording && !isPaused ? 'Pause' : 
+               isPaused ? 'Resume' : 'Start'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.button,
+              styles.controlButton,
+              styles.stopButton,
+              (!isRecording || isTranscribing) && styles.disabledButton
+            ]}
+            onPress={handleStopRecording}
+            disabled={!isRecording || isTranscribing}
+          >
+            <Text style={styles.buttonText}>Stop</Text>
+          </TouchableOpacity>
         </View>
+
+        {/* Show recording status */}
+        {isRecording && (
+          <View style={styles.recordingStatusContainer}>
+            <Text style={styles.recordingStatusText}>
+              {isPaused ? 'Recording paused - tap Resume to continue' : 'Recording in progress...'}
+            </Text>
+          </View>
+        )}
 
         {isTranscribing && (
           <View style={styles.transcribingContainer}>
@@ -259,21 +377,37 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         <TouchableOpacity
           style={[styles.button, styles.saveButton]}
           onPress={handleSave}
-          disabled={!transcription.trim() || !title.trim()}
+          disabled={!title.trim() || ((!isRecording && !transcription.trim()) || isTranscribing)}
         >
-          <Text style={styles.buttonText}>Save Transcript</Text>
+          <Text style={styles.buttonText}>
+            {isRecording ? 'Stop and Save' : 
+             transcription.trim() ? 'Save Transcript' : 'Save (requires transcription)'}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.button, styles.clearButton]}
+          style={[
+            styles.button, 
+            styles.clearButton,
+            (!transcription.trim() && !title.trim() && !tags.trim()) && styles.disabledButton
+          ]}
           onPress={handleClear}
+          disabled={!transcription.trim() && !title.trim() && !tags.trim()}
         >
           <Text style={[styles.buttonText, styles.clearButtonText]}>Clear All</Text>
         </TouchableOpacity>
       </View>
 
       {/* Error Display */}
-      {error && (
+      {error && !error.includes('Already recording') && !error.includes('No active recording') && 
+       !error.includes('No recording to resume') && !error.includes('already active') && 
+       !error.includes('not currently active') && !error.includes('No recording to pause') && 
+       !error.includes('No recording to stop') && !error.includes('No recording available') && 
+       !error.includes('No transcription to enhance') && !error.includes('No transcription available') && 
+       !error.includes('No content to clear') && !error.includes('Nothing to clear') && 
+       !error.includes('No recording was active') && !error.includes('No recording to pause') && 
+       !error.includes('No recording to resume') && !error.includes('No recording to stop') && 
+       !error.includes('No recording was active to stop') && !error.includes('No recording to pause') && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
@@ -341,25 +475,45 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.BODY,
     color: COLORS.ERROR,
   },
-  recordingButtons: {
+  recordingButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    gap: SPACING.MD,
+    marginBottom: SPACING.MD,
   },
   button: {
-    paddingVertical: SPACING.LG,
-    paddingHorizontal: SPACING.XL,
-    borderRadius: BORDER_RADIUS.LG,
-    minWidth: 200,
+    paddingVertical: SPACING.MD,
+    paddingHorizontal: SPACING.LG,
+    borderRadius: BORDER_RADIUS.MD,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  recordButton: {
+  controlButton: {
+    flex: 1,
+    maxWidth: 150,
+    minHeight: 48,
+  },
+  startButton: {
     backgroundColor: COLORS.PRIMARY,
+  },
+  pauseButton: {
+    backgroundColor: COLORS.WARNING,
+  },
+  recordingButton: {
+    backgroundColor: COLORS.SUCCESS,
   },
   stopButton: {
     backgroundColor: COLORS.ERROR,
   },
+  disabledButton: {
+    backgroundColor: COLORS.GRAY_400,
+    opacity: 0.7,
+  },
   buttonText: {
     ...TYPOGRAPHY.BUTTON,
     color: COLORS.WHITE,
+    textAlign: 'center',
   },
   transcribingContainer: {
     flexDirection: 'row',
@@ -390,6 +544,8 @@ const styles = StyleSheet.create({
   },
   transcriptionContainer: {
     marginBottom: SPACING.LG,
+    maxHeight: 400, // Add maximum height
+    flex: 1, // Allow container to grow
   },
   transcriptionHeader: {
     flexDirection: 'row',
@@ -416,6 +572,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.MD,
     padding: SPACING.MD,
     minHeight: 120,
+    maxHeight: 400,
     ...TYPOGRAPHY.BODY,
     color: COLORS.GRAY_900,
     textAlignVertical: 'top',
@@ -458,5 +615,17 @@ const styles = StyleSheet.create({
   },
   clearButtonText: {
     color: COLORS.GRAY_700,
+  },
+  pausedDot: {
+    backgroundColor: COLORS.WARNING,
+  },
+  recordingStatusContainer: {
+    alignItems: 'center',
+    marginTop: SPACING.SM,
+  },
+  recordingStatusText: {
+    ...TYPOGRAPHY.BODY,
+    color: COLORS.GRAY_600,
+    fontStyle: 'italic',
   },
 }); 

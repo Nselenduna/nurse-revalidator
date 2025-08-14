@@ -5,7 +5,18 @@ import { RecordingSession, CPDLog } from '../types';
 
 class CPDService {
   private isWeb = Platform.OS === 'web';
-  private recording: any = null; // Use any for now since Audio.Recording has issues
+  private recording: Audio.Recording | null = null;
+  private recordingStatus: {
+    isRecording: boolean;
+    isPaused: boolean;
+    durationMillis: number;
+    startTime: Date | null;
+  } = {
+    isRecording: false,
+    isPaused: false,
+    durationMillis: 0,
+    startTime: null
+  };
   private audioDirectory = `${FileSystem.documentDirectory}audio/`;
 
   async initialize(): Promise<void> {
@@ -43,6 +54,94 @@ class CPDService {
     }
   }
 
+  // Pause recording
+  async pauseRecording(): Promise<void> {
+    try {
+      console.log('Attempting to pause recording...');
+      
+      if (!this.recording || !this.recordingStatus.isRecording) {
+        throw new Error('No active recording to pause');
+      }
+
+      await this.recording.pauseAsync();
+      
+      this.recordingStatus = {
+        ...this.recordingStatus,
+        isRecording: false,
+        isPaused: true,
+        durationMillis: (this.recordingStatus.startTime ? 
+          Date.now() - this.recordingStatus.startTime.getTime() : 
+          this.recordingStatus.durationMillis)
+      };
+      
+      console.log('Recording paused successfully');
+    } catch (error) {
+      console.error('Failed to pause recording:', error);
+      // Reset recording state on error
+      this.recordingStatus.isRecording = false;
+      this.recordingStatus.isPaused = false;
+      throw error;
+    }
+  }
+
+  // Resume recording
+  async resumeRecording(): Promise<void> {
+    try {
+      console.log('Attempting to resume recording...');
+      
+      if (!this.recording) {
+        throw new Error('No recording to resume');
+      }
+
+      // Create a new recording if needed
+      if (!this.recordingStatus.isPaused) {
+        this.recording = new Audio.Recording();
+        await this.recording.prepareToRecordAsync({
+          web: {
+            mimeType: 'audio/webm',
+            bitsPerSecond: 128000,
+          },
+          android: {
+            extension: '.m4a',
+            outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+            audioEncoder: Audio.AndroidAudioEncoder.AAC,
+            sampleRate: 44100,
+            numberOfChannels: 2,
+            bitRate: 128000,
+          },
+          ios: {
+            extension: '.m4a',
+            outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
+            audioQuality: Audio.IOSAudioQuality.HIGH,
+            sampleRate: 44100,
+            numberOfChannels: 2,
+            bitRate: 128000,
+            linearPCMBitDepth: 16,
+            linearPCMIsBigEndian: false,
+            linearPCMIsFloat: false,
+          },
+        });
+      }
+
+      await this.recording.startAsync();
+      
+      this.recordingStatus = {
+        ...this.recordingStatus,
+        isRecording: true,
+        isPaused: false,
+        startTime: new Date()
+      };
+      
+      console.log('Recording resumed successfully');
+    } catch (error) {
+      console.error('Failed to resume recording:', error);
+      // Reset recording state on error
+      this.recordingStatus.isRecording = false;
+      this.recordingStatus.isPaused = false;
+      throw error;
+    }
+  }
+
   // Start recording a lecture
   async startLectureRecording(): Promise<RecordingSession> {
     try {
@@ -53,6 +152,7 @@ class CPDService {
         const session: RecordingSession = {
           id: Date.now().toString(),
           isRecording: true,
+          isPaused: false,
           startTime: new Date(),
           duration: 0,
           audioUri: undefined,
@@ -62,36 +162,51 @@ class CPDService {
         return session;
       }
 
-      // Mobile recording using Expo AV
-      try {
-        // Use any type for now to avoid Audio.Recording issues
-        this.recording = new (Audio as any).Recording();
-        await this.recording.prepareAsync((Audio as any).RecordingOptionsPresets.HIGH_QUALITY);
-        await this.recording.startAsync();
-
-        const session: RecordingSession = {
-          id: Date.now().toString(),
-          isRecording: true,
-          startTime: new Date(),
-          duration: 0,
-          audioUri: undefined,
-        };
-
-        console.log('Lecture recording started');
-        return session;
-      } catch (recordingError) {
-        console.error('Recording failed, returning simulated session:', recordingError);
-        // Return a simulated session if recording fails
-        return {
-          id: Date.now().toString(),
-          isRecording: true,
-          startTime: new Date(),
-          duration: 0,
-          audioUri: undefined,
-        };
+      // Cleanup any existing recording
+      if (this.recording) {
+        await this.recording.stopAndUnloadAsync();
+        this.recording = null;
       }
+
+      // Request permissions again to ensure they're still granted
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        throw new Error('Audio permission not granted');
+      }
+
+      // Create and prepare new recording
+      const recording = new Audio.Recording();
+      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+
+      await recording.startAsync();
+      this.recording = recording;
+      this.recordingStatus = {
+        isRecording: true,
+        isPaused: false,
+        durationMillis: 0,
+        startTime: new Date()
+      };
+
+      const session: RecordingSession = {
+        id: Date.now().toString(),
+        isRecording: true,
+        isPaused: false,
+        startTime: new Date(),
+        duration: 0,
+        audioUri: undefined,
+      };
+
+      console.log('Lecture recording started successfully');
+      return session;
     } catch (error) {
       console.error('Failed to start lecture recording:', error);
+      this.recording = null;
+      this.recordingStatus = {
+        isRecording: false,
+        isPaused: false,
+        durationMillis: 0,
+        startTime: null
+      };
       throw error;
     }
   }
@@ -102,40 +217,44 @@ class CPDService {
       console.log('Stopping lecture recording...');
       
       if (this.isWeb) {
-        // Simulate stopping recording
-        const session: RecordingSession = {
-          id: Date.now().toString(),
+        this.recordingStatus = {
           isRecording: false,
-          startTime: new Date(Date.now() - 60000), // 1 minute ago
-          duration: 60,
-          audioUri: 'web://lecture_recording.wav',
+          isPaused: false,
+          durationMillis: 0,
+          startTime: null
         };
         
-        console.log('Lecture recording stopped (web simulation)');
-        return session;
-      }
-
-      if (!this.recording) {
-        // Return simulated session if no recording
         return {
           id: Date.now().toString(),
           isRecording: false,
+          isPaused: false,
           startTime: new Date(Date.now() - 60000),
           duration: 60,
-          audioUri: 'simulated://lecture_recording.wav',
+          audioUri: 'web://lecture_recording.wav',
         };
       }
 
+      if (!this.recording) {
+        throw new Error('No active recording to stop');
+      }
+
       try {
+        // Stop the recording
         await this.recording.stopAndUnloadAsync();
-        const uri = this.recording.getURI();
         
+        // Calculate actual duration
+        const duration = this.recordingStatus.startTime ? 
+          Math.floor((Date.now() - this.recordingStatus.startTime.getTime()) / 1000) : 
+          60; // fallback duration
+        
+        // Get the recording URI
+        const uri = this.recording.getURI();
         if (!uri) {
           throw new Error('Failed to get recording URI');
         }
 
         // Save audio file to local storage
-        const fileName = `lecture_${Date.now()}.wav`;
+        const fileName = `lecture_${Date.now()}.m4a`;
         const destinationUri = `${this.audioDirectory}${fileName}`;
         
         await FileSystem.moveAsync({
@@ -143,26 +262,38 @@ class CPDService {
           to: destinationUri,
         });
 
+        // Create session with actual recording data
         const session: RecordingSession = {
           id: Date.now().toString(),
           isRecording: false,
-          startTime: new Date(Date.now() - 60000), // Approximate
-          duration: 60, // Approximate
+          isPaused: false,
+          startTime: this.recordingStatus.startTime || new Date(Date.now() - duration * 1000),
+          duration: duration,
           audioUri: destinationUri,
         };
 
-        console.log('Lecture recording stopped and saved');
+        // Reset recording state
+        this.recording = null;
+        this.recordingStatus = {
+          isRecording: false,
+          isPaused: false,
+          durationMillis: 0,
+          startTime: null
+        };
+
+        console.log('Recording stopped and saved successfully:', { destinationUri, duration });
         return session;
       } catch (recordingError) {
-        console.error('Failed to stop recording:', recordingError);
-        // Return simulated session if stopping fails
-        return {
-          id: Date.now().toString(),
+        console.error('Failed to stop and save recording:', recordingError);
+        // Reset recording state
+        this.recording = null;
+        this.recordingStatus = {
           isRecording: false,
-          startTime: new Date(Date.now() - 60000),
-          duration: 60,
-          audioUri: 'error://recording_failed.wav',
+          isPaused: false,
+          durationMillis: 0,
+          startTime: null
         };
+        throw recordingError;
       }
     } catch (error) {
       console.error('Failed to stop lecture recording:', error);
@@ -174,12 +305,12 @@ class CPDService {
   async getRecordingStatus(): Promise<RecordingSession | null> {
     try {
       if (this.isWeb) {
-        // Simulate recording status for web
         return {
           id: Date.now().toString(),
-          isRecording: false,
-          startTime: new Date(Date.now() - 60000),
-          duration: 60,
+          isRecording: this.recordingStatus.isRecording,
+          isPaused: this.recordingStatus.isPaused,
+          startTime: this.recordingStatus.startTime || new Date(),
+          duration: Math.floor(this.recordingStatus.durationMillis / 1000),
           audioUri: 'web://current_recording.wav',
         };
       }
@@ -188,15 +319,32 @@ class CPDService {
         return null;
       }
 
-      const status = await this.recording.getStatusAsync();
-      
-      return {
-        id: Date.now().toString(),
-        isRecording: status.isRecording || false,
-        startTime: new Date(Date.now() - (status.durationMillis || 0)),
-        duration: status.durationMillis ? Math.floor(status.durationMillis / 1000) : 0,
-        audioUri: this.recording.getURI() || undefined,
-      };
+      try {
+        const status = await this.recording.getStatusAsync();
+        const currentTime = Date.now();
+        const duration = this.recordingStatus.startTime ? 
+          Math.floor((currentTime - this.recordingStatus.startTime.getTime()) / 1000) :
+          Math.floor(this.recordingStatus.durationMillis / 1000);
+
+        return {
+          id: Date.now().toString(),
+          isRecording: this.recordingStatus.isRecording,
+          isPaused: this.recordingStatus.isPaused,
+          startTime: this.recordingStatus.startTime || new Date(currentTime - duration * 1000),
+          duration: duration,
+          audioUri: this.recording.getURI() || undefined,
+        };
+      } catch (statusError) {
+        console.error('Failed to get recording status:', statusError);
+        return {
+          id: Date.now().toString(),
+          isRecording: this.recordingStatus.isRecording,
+          isPaused: this.recordingStatus.isPaused,
+          startTime: this.recordingStatus.startTime || new Date(),
+          duration: Math.floor(this.recordingStatus.durationMillis / 1000),
+          audioUri: undefined,
+        };
+      }
     } catch (error) {
       console.error('Failed to get recording status:', error);
       return null;

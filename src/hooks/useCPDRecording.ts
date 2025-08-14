@@ -4,6 +4,7 @@ import { CPDLog } from '../types';
 
 export interface UseCPDRecordingReturn {
   isRecording: boolean;
+  isPaused: boolean;
   isSummarizing: boolean;
   isSaving: boolean;
   recordingSession: RecordingSession | null;
@@ -12,6 +13,8 @@ export interface UseCPDRecordingReturn {
   notes: string;
   error: string | null;
   startRecording: () => Promise<void>;
+  pauseRecording: () => Promise<void>;
+  resumeRecording: () => Promise<void>;
   stopRecording: () => Promise<void>;
   generateSummary: () => Promise<void>;
   updateTags: (newTags: string[]) => void;
@@ -22,6 +25,7 @@ export interface UseCPDRecordingReturn {
 
 export const useCPDRecording = (): UseCPDRecordingReturn => {
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [recordingSession, setRecordingSession] = useState<RecordingSession | null>(null);
@@ -68,6 +72,38 @@ export const useCPDRecording = (): UseCPDRecordingReturn => {
     }
   }, []);
 
+  // Pause recording
+  const pauseRecording = useCallback(async () => {
+    console.log('pauseRecording called');
+    try {
+      setError(null);
+      await cpdService.pauseRecording();
+      setIsPaused(true);
+      setIsRecording(false);
+      console.log('Recording paused successfully');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to pause recording';
+      setError(errorMessage);
+      console.error('Pause recording error:', err);
+    }
+  }, []);
+
+  // Resume recording
+  const resumeRecording = useCallback(async () => {
+    console.log('resumeRecording called');
+    try {
+      setError(null);
+      await cpdService.resumeRecording();
+      setIsPaused(false);
+      setIsRecording(true);
+      console.log('Recording resumed successfully');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to resume recording';
+      setError(errorMessage);
+      console.error('Resume recording error:', err);
+    }
+  }, []);
+
   // Stop recording
   const stopRecording = useCallback(async () => {
     console.log('stopRecording called');
@@ -76,6 +112,7 @@ export const useCPDRecording = (): UseCPDRecordingReturn => {
       const session = await cpdService.stopLectureRecording();
       setRecordingSession(session);
       setIsRecording(false);
+      setIsPaused(false);
       console.log('Recording stopped successfully');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to stop recording';
@@ -180,6 +217,7 @@ export const useCPDRecording = (): UseCPDRecordingReturn => {
 
   return {
     isRecording,
+    isPaused,
     isSummarizing,
     isSaving,
     recordingSession,
@@ -188,6 +226,8 @@ export const useCPDRecording = (): UseCPDRecordingReturn => {
     notes,
     error,
     startRecording,
+    pauseRecording,
+    resumeRecording,
     stopRecording,
     generateSummary,
     updateTags,

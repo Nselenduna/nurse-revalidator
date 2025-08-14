@@ -78,6 +78,7 @@ export interface RecordingSession {
   id: string;
   title?: string;
   isRecording: boolean;
+  isPaused: boolean;
   startTime?: Date;
   duration?: number;
   audioUri?: string;
@@ -118,6 +119,7 @@ export type RootStackParamList = {
   Education: undefined;
   Settings: undefined;
   VoiceRecorder: { mode: 'transcript' | 'lecture' };
+  NMCFormFiller: undefined;
 };
 
 // App state types
@@ -157,4 +159,4 @@ export type NMCPillar = typeof NMC_PILLARS[keyof typeof NMC_PILLARS];
 export const SUBSCRIPTION_FEATURES = {
   FREE: ['voice_transcription', 'form_filling', 'cpd_logging'],
   PREMIUM: ['ai_suggestions', 'lecture_summarization', 'educational_recommendations', 'pdf_export', 'printing']
-} as const; 
+} as const;

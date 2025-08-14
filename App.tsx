@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { COLORS, APP_CONFIG } from './src/constants';
 import databaseService from './src/services/DatabaseService';
 import formService from './src/services/FormService';
@@ -25,8 +25,42 @@ import CPDDetailScreen from './src/screens/CPDDetailScreen';
 import EducationScreen from './src/screens/EducationScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import VoiceRecorderScreen from './src/screens/VoiceRecorderScreen';
+import NMCFormFillerScreen from './src/screens/NMCFormFillerScreen';
 
 const Stack = createStackNavigator();
+
+// Logout button component
+const LogoutButton = () => {
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Logout', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await authService.logout();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to logout. Please try again.');
+            }
+          }
+        },
+      ]
+    );
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={handleLogout}
+      style={{ marginRight: 15, padding: 5 }}
+    >
+      <Text style={{ color: COLORS.WHITE, fontSize: 16 }}>Logout</Text>
+    </TouchableOpacity>
+  );
+};
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -189,47 +223,82 @@ export default function App() {
               <Stack.Screen 
                 name="Home" 
                 component={HomeScreen}
-                options={{ title: APP_CONFIG.NAME }}
+                options={{ 
+                  title: '',
+                  headerRight: () => <LogoutButton />
+                }}
               />
           <Stack.Screen 
             name="Transcript" 
             component={TranscriptScreen}
-            options={{ title: 'Voice Transcript' }}
+            options={{ 
+              title: 'Voice Transcript',
+              headerRight: () => <LogoutButton />
+            }}
           />
           <Stack.Screen 
             name="Forms" 
             component={FormsScreen}
-            options={{ title: 'NMC Forms' }}
+            options={{ 
+              title: 'Nursing Forms',
+              headerRight: () => <LogoutButton />
+            }}
           />
           <Stack.Screen 
             name="FormFilling" 
             component={FormFillingScreen}
-            options={{ title: 'Fill Form' }}
+            options={{ 
+              title: 'Fill Form',
+              headerRight: () => <LogoutButton />
+            }}
           />
           <Stack.Screen 
             name="CPDLogging" 
             component={CPDLoggingScreen}
-            options={{ title: 'CPD Logging' }}
+            options={{ 
+              title: 'CPD Logging',
+              headerRight: () => <LogoutButton />
+            }}
           />
           <Stack.Screen 
             name="CPDDetail" 
             component={CPDDetailScreen}
-            options={{ title: 'CPD Logs' }}
+            options={{ 
+              title: 'CPD Logs',
+              headerRight: () => <LogoutButton />
+            }}
           />
           <Stack.Screen 
             name="Education" 
             component={EducationScreen}
-            options={{ title: 'Learning Resources' }}
+            options={{ 
+              title: 'Learning Resources',
+              headerRight: () => <LogoutButton />
+            }}
           />
           <Stack.Screen 
             name="Settings" 
             component={SettingsScreen}
-            options={{ title: 'Settings' }}
+            options={{
+              title: 'Settings',
+              headerRight: () => <LogoutButton />,
+            }}
           />
           <Stack.Screen 
             name="VoiceRecorder" 
             component={VoiceRecorderScreen}
-            options={{ title: 'Voice Recorder' }}
+            options={{ 
+              title: 'Voice Recorder',
+              headerRight: () => <LogoutButton />
+            }}
+          />
+          <Stack.Screen 
+            name="NMCFormFiller" 
+            component={NMCFormFillerScreen}
+            options={{ 
+              title: 'NMC Form Filler',
+              headerRight: () => <LogoutButton />
+            }}
           />
             </>
           )}
