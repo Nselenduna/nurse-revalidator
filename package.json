@@ -1,0 +1,48 @@
+{
+  "name": "nurse-revalidator",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "test": "node test-stage1.js",
+    "test-stage1": "node test-stage1.js",
+    "test-stage2": "node test-stage2.js",
+    "test-stage3": "node test-stage3.js",
+    "test-stage4": "node test-stage4.js",
+    "test-stage5": "node test-stage5.js",
+    "test-stage6": "node test-stage6.js",
+    "test-stage7": "node test-stage7.js"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.1.2",
+    "@react-navigation/bottom-tabs": "^7.4.5",
+    "@react-navigation/native": "^7.1.17",
+    "@react-navigation/stack": "^7.4.5",
+    "expo": "~53.0.20",
+    "expo-av": "^15.1.7",
+    "expo-document-picker": "^13.1.6",
+    "expo-file-system": "^18.1.11",
+    "expo-linear-gradient": "^14.1.5",
+    "expo-sharing": "^13.1.5",
+    "expo-speech": "^13.1.7",
+    "expo-sqlite": "^15.2.14",
+    "expo-status-bar": "~2.2.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-native": "0.79.5",
+    "react-native-gesture-handler": "^2.24.0",
+    "react-native-safe-area-context": "^5.4.0",
+    "react-native-screens": "^4.11.1",
+    "react-native-vector-icons": "^10.3.0",
+    "react-native-web": "^0.20.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@types/react": "~19.0.10",
+    "typescript": "~5.8.3"
+  },
+  "private": true
+}
